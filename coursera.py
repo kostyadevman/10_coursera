@@ -4,6 +4,7 @@ from random import randint
 import openpyxl
 import argparse
 
+
 def get_arguments():
     parser = argparse.ArgumentParser('Get info from coursera.org')
     parser.add_argument(
@@ -28,8 +29,8 @@ def get_courses_list(course_count):
     coursera_loc_tags = coursera_soup.find_all('loc')
     for loc_tag in coursera_loc_tags:
         courses.append(loc_tag.text)
-    for course_count in range(0,course_count):
-        yield courses[randint(0,len(courses))]
+    for course_count in range(0, course_count):
+        yield courses[randint(0, len(courses))]
 
 
 def get_course_info(course_url):
