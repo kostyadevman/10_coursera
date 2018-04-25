@@ -18,6 +18,7 @@ def get_arguments():
 
 
 def get_courses_list(course_count):
+    begin_range = 0
     courses = []
     coursera_response = requests.get(
         'https://www.coursera.org/sitemap~www~courses.xml'
@@ -29,8 +30,8 @@ def get_courses_list(course_count):
     coursera_loc_tags = coursera_soup.find_all('loc')
     for loc_tag in coursera_loc_tags:
         courses.append(loc_tag.text)
-    for course_count in range(0, course_count):
-        yield courses[randint(0, len(courses))]
+    for course_count in range(course_count):
+        yield courses[randint(begin_range, len(courses))]
 
 
 def get_course_info(course_url):
