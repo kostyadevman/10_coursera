@@ -1,6 +1,6 @@
 import requests
 import bs4
-from random import randint
+import random
 import openpyxl
 import argparse
 
@@ -17,26 +17,27 @@ def get_arguments():
     return parser.parse_args()
 
 
-def get_courses_list(course_count):
-    begin_range = 0
-    courses = []
-    coursera_response = requests.get(
-        'https://www.coursera.org/sitemap~www~courses.xml'
-    )
+def get_html_from_url(coursera_url):
+    return requests.get(coursera_url).content
+
+
+def get_random_courses_references(coursera_html, course_count):
+    courses_references = []
     coursera_soup = bs4.BeautifulSoup(
-        coursera_response.content,
+        coursera_html,
         'lxml'
     )
     coursera_loc_tags = coursera_soup.find_all('loc')
     for loc_tag in coursera_loc_tags:
-        courses.append(loc_tag.text)
-    for course_count in range(course_count):
-        yield courses[randint(begin_range, len(courses))]
+        courses_references.append(loc_tag.text)
+    return random.sample(
+        courses_references,
+        course_count
+    )
 
 
-def get_course_info(course_url):
-    course_response = requests.get(course_url)
-    coursera_soup = bs4.BeautifulSoup(course_response.content, 'lxml')
+def get_course_info(course_html):
+    coursera_soup = bs4.BeautifulSoup(course_html, 'lxml')
     title = coursera_soup.find(
         'h1',
         class_='title display-3-text'
@@ -60,30 +61,58 @@ def get_course_info(course_url):
             ''
         )
     else:
-        user_rating = '-'
-    return [start_date, title, language, week_count, user_rating]
+        user_rating = None
+    return {
+        '1_start_date': start_date,
+        '2_title': title,
+        '3_language': language,
+        '4_week_count': week_count,
+        '5_user_rating': user_rating,
+    }
 
 
-def output_courses_info_to_xlsx(filepath, courses_info):
-    header = ['Start date',
-               'Course title',
-               'Language',
-               'Week count',
-               'User rating (5 maximum)']
+def fill_xlsx(courses_info):
+    header = [
+        'Start date',
+        'Course title',
+        'Language',
+        'Week count',
+        'User rating (5 maximum)',
+    ]
     workbook = openpyxl.Workbook()
     sheet = workbook.active
     sheet.title = 'courses info'
     sheet.append(header)
     for course_info in courses_info:
-        sheet.append(course_info)
-    workbook.save(filepath)
+        if not course_info['5_user_rating']:
+            course_info['5_user_rating'] = 'No rating yet'
+        sheet.append(
+            [
+                course_info['1_start_date'],
+                course_info['2_title'],
+                course_info['3_language'],
+                course_info['4_week_count'],
+                course_info['5_user_rating']
+            ]
+        )
+    return workbook
 
 
 if __name__ == '__main__':
     args = get_arguments()
     course_count = 20
     courses_info = []
-    courses = get_courses_list(course_count)
-    for course in courses:
-        courses_info.append(get_course_info(course))
-    output_courses_info_to_xlsx(args.output, courses_info)
+    coursera_html = get_html_from_url(
+        'https://www.coursera.org/sitemap~www~courses.xml'
+    )
+    courses_references = get_random_courses_references(
+        coursera_html,
+        course_count
+    )
+
+    for courses_reference in courses_references:
+        course_html = get_html_from_url(courses_reference)
+        course_info = get_course_info(course_html)
+        courses_info.append(course_info)
+    workbook = fill_xlsx(courses_info)
+    workbook.save(args.output)
